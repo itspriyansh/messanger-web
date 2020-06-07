@@ -1,15 +1,12 @@
 import React from 'react';
 import Header from './header.component';
-import { Form, Button, Badge, Media } from 'reactstrap';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import baseurl from '../shared/baseurl';
+import Message from './message.component';
+import MessageBox from './message-box.component';
 
 class ChatScreen extends React.Component {
     constructor(props){
         super(props);
-        this.state = {
-            message: ''
-        }
         this.handleSubmit = this.handleSubmit.bind(this);
     }
 
@@ -17,20 +14,38 @@ class ChatScreen extends React.Component {
         if(this.messagesEnd)
         this.messagesEnd.scrollIntoView();
     }
-      
+    
+
     componentDidMount() {
         this.scrollToBottom();
+        this.props.chat.chat.forEach((message, index) => {
+            const notMyMessage = this.props.userId !== message.from;
+            if(notMyMessage && message.status === 'new') {
+                this.props.changeStatus('', message.from, index, this.props.socket, this.props.userId, message.index);
+            }
+        });
     }
       
     componentDidUpdate() {
         this.scrollToBottom();
+        this.props.chat.chat.forEach((message, index) => {
+            const notMyMessage = this.props.userId !== message.from;
+            if(notMyMessage && message.status === 'new') {
+                this.props.changeStatus('', message.from, index, this.props.socket, this.props.userId, message.index);
+            }
+        });
     }
 
-    handleSubmit(event) {
+    handleSubmit(event, message) {
         event.preventDefault();
-        if(!this.state.message) return;
-        this.props.sendMessage(this.props.chat.id, this.state.message);
-        this.setState({message: ''});
+        if(!message) return;
+        this.props.sendMessage(this.props.chat._id,
+            this.props.userId,
+            message,
+            this.props.chat.chat.length,
+            this.props.socket,
+            this.props.privateKey,
+            this.props.nKey);
     }
 
     render(){
@@ -38,42 +53,31 @@ class ChatScreen extends React.Component {
             return(<div>Loading...</div>);
         }
         return(
-            <div className="bg-light" style={{height: '100vh'}}>
-                <Header history={this.props.history} icon={this.props.chat.icon} title={this.props.chat.name} back={true} />
-                <div style={{height: '80vh', overflowY: 'scroll'}}>
-                    <div style={{display: "flex", flexDirection: "column", justifyContent: 'flex-end'}}>
-                        {this.props.chat.messages.map((message, index) => {
+            <div className="bg-light" style={{height: '100vh', backgroundAttachment: 'fixed'}}>
+                <Header history={this.props.history}
+                    icon={baseurl+this.props.chat.image} link={`/profile/${this.props.chat._id}`}
+                    title={this.props.chat.name} back={true} />
+                <div style={{overflowY: 'scroll'}}>
+                    <div style={{display: "flex", flexDirection: "column", height: '80vh'}}>
+                        {this.props.chat.chat.map((message, index) => {
                             return(
-                                <Media key={index} style={{alignSelf: index%2 ? 'flex-start' : 'flex-end'}}>
-                                    {index%2
-                                    ? <Media>
-                                        <Media style={{width: 30, marginRight: 0, borderRadius: '50%'}} object src={this.props.chat.icon} alt="Profile Picture" />
-                                    </Media>
+                                <React.Fragment key={index}>
+                                    {!index || new Date(message.time).toLocaleDateString() !== new Date(this.props.chat.chat[index-1].time).toLocaleDateString()
+                                    ? <div className="text-center my-3">{new Date(message.time).toLocaleDateString()}</div>
                                     : null}
-                                    <Media body>
-                                        <Badge color={index%2 ? 'secondary' : 'primary'}
-                                        style={{fontSize: 15, padding: 10, margin: 10, textAlign: 'left', whiteSpace: 'normal'}}>
-                                                {message}
-                                        </Badge>
-                                    </Media>
-                                </Media>
+                                    <Message message={message} userId={this.props.userId}
+                                    last={index+1 === this.props.chat.chat.length}
+                                    image={this.props.chat.image}
+                                    prevMessage={(index ? this.props.chat.chat[index-1] : null)} />
+                                </React.Fragment>
                             );
                         })}
                     </div>
-                    <div style={{ float:"left", clear: "both" }}
+                    <div style={{clear: "both" }}
                         ref={(el) => { this.messagesEnd = el; }}>
                     </div>
                 </div>
-                <Form inline className="fixed-bottom" onSubmit={this.handleSubmit}>
-                    <textarea name="message" id="message" value={this.state.message}
-                        onChange={event => this.setState({message: event.target.value})}
-                        placeholder="Enter Message Here" style={{height: 60, width: '85%', borderRadius: 30, padding: 10, borderColor: 'grey', fontSize: 20, resize: 'none'}}>
-                    </textarea>
-                    <Button color="primary"
-                        style={{height: 60, width: 60, borderRadius: '50%'}}>
-                        <FontAwesomeIcon icon={faPaperPlane} size="lg" />
-                    </Button>
-                </Form>
+                <MessageBox handleSubmit={this.handleSubmit} />
             </div>
         );
     }

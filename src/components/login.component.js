@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, CardImg, CardBody,
-    CardTitle, Button, Form, FormGroup, Input, Label } from 'reactstrap';
-import { Redirect } from 'react-router-dom';
+    CardTitle, Button, Form, FormGroup, Input, Label, CardText } from 'reactstrap';
+import Loading from './loading.component';
 
 function handleChange(event, setValue) {
     const field = event.target.name, value = event.target.value;
@@ -19,21 +19,28 @@ function handleChange(event, setValue) {
 }
 
 function Login(props) {
-    const [phone, setPhone] = useState('+91 ');
+    const [phone, setPhone] = useState(props.user.phone);
     const [otp, setOtp] = useState('');
-    const [phoneProvided, setPhoneProvided] = useState(false);
+    const phoneProvided = props.user.color !== 'red';
 
     const handleSubmit = (event) => {
         event.preventDefault();
         if(phoneProvided) {
-            console.log("ekjwo");
-            props.login(phone, otp, 'Priyansh');
+            props.verifyOtp(phone,otp);
+            return;
         }
-        setPhoneProvided(true);
+        props.login(phone);
     }
 
-    if(props.user) {
-        return (<Redirect to='/home' />);
+    if(props.user.isLoading) {
+        return <Loading />;
+    }
+
+    if(props.user.user) {
+        if(!props.user.user.name){
+            return this.props.history.push('/profile');
+        }
+        return this.props.history.push('/home');
     }
 
     return(
@@ -45,6 +52,7 @@ function Login(props) {
                         <CardImg top style={{width: '30%', alignSelf: 'center'}} src={require('../images/Email-512.png')} />
                         <CardBody>
                             <CardTitle style={{textAlign: 'center', fontSize: 30, fontWeight: 'bold'}}>Login</CardTitle>
+                            <CardText style={{color: props.user.color}}>{props.user.errMess}</CardText>
                             <Form onSubmit={handleSubmit}>
                                 <FormGroup>
                                     {!phoneProvided
@@ -57,7 +65,9 @@ function Login(props) {
                                     onChange={(event) => handleChange(event, setOtp)} />}
                                 </FormGroup>
                                 <Button color="primary" style={{width: '100%'}}
-                                disabled={(phoneProvided && otp.length<6) || (!phoneProvided && phone.length<14)}>Submit</Button>
+                                disabled={(phoneProvided && otp.length<6) || (!phoneProvided && phone.length<14)}>
+                                    {phoneProvided ? 'Submit' : 'Confirm'}
+                                </Button>
                             </Form>
                         </CardBody>
                     </Card>

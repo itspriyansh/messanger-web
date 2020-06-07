@@ -10,14 +10,14 @@ function Header(props) {
     return(
         <Navbar color="primary" light className="sticky-top" expand="md">
             {props.back
-            ? <FontAwesomeIcon onClick={() => props.history.goBack()} icon={faArrowLeft} size="lg" style={{color: "white", marginRight: 20}} />
+            ? <FontAwesomeIcon className="cursor-pointer" onClick={() => props.history.goBack()} icon={faArrowLeft} size="lg" style={{color: "white", marginRight: 20}} />
             : null}
             {props.icon
             ? <Media>
                 <Media style={{width: 50, marginRight: 20, borderRadius: '50%'}} object src={props.icon} alt="Profile Picture" />
             </Media>
             : null}
-            <Media body>
+            <Media body className="cursor-pointer" onClick={() => {if(props.link) props.history.push(props.link);}}>
                 <NavbarBrand className="text-light">
                     {props.title}
                 </NavbarBrand>
@@ -30,9 +30,14 @@ function Header(props) {
                     <DropdownMenu right>
                         {props.dropdownOptions.map((item,index) => {
                             return(
-                                <DropdownItem  key={index}>
-                                    {item.name}
-                                </DropdownItem >
+                                <React.Fragment key={index}>
+                                    <DropdownItem  key={index} onClick={item.onClick}>
+                                    <FontAwesomeIcon icon={item.icon} />{'  '}{item.name}
+                                    </DropdownItem >
+                                    {index < props.dropdownOptions.length-1
+                                    ? <DropdownItem divider />
+                                    : null}
+                                </React.Fragment>
                             );
                         })}
                     </DropdownMenu>
