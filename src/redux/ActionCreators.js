@@ -3,7 +3,6 @@ import baseurl from '../shared/baseurl';
 import AES256 from '../shared/aes-256';
 import RSA from '../shared/rsa';
 
-const token = localStorage.getItem('token');
 export const submitPhone = (message, color='red', phone='+91 ') => ({
     type: ActionTypes.SUBMIT_PHONE,
     payload: {message: message, color: color, phone: phone}
@@ -54,6 +53,7 @@ export const tryUser = (user) => ({
 });
 
 export const checkUser = () => dispatch => {
+    const token = localStorage.getItem('token');
     if(!token) {
         return dispatch(tryUser(null));
     }
@@ -93,7 +93,7 @@ export const verifyOtp = (phone, otp) => dispatch => {
             initialiseLocalStorage();
             localStorage.setItem('token', response.token);
             localStorage.setItem('user', JSON.stringify(response.user));
-            dispatch(checkUser());
+            (checkUser())(dispatch);
             alert(response.message);
         } else {
             dispatch(submitPhone(response.err, response.err.indexOf('OTP') === -1 ? 'red' : 'orange'));
@@ -116,6 +116,7 @@ export const addChat = (name, phone, users, toggle) => dispatch => {
             return dispatch(addChatError(`${phone} aleady exists in your contacts`));
         }
     }
+    const token = localStorage.getItem('token');
     dispatch({type: ActionTypes.ADD_CHAT_LOADING});
     fetch(baseurl + 'users/get-info',{
         method: 'POST',
@@ -151,16 +152,17 @@ export const addMessage = (id, messageDetail) => ({
     payload: {messageDetail: messageDetail, id: id}
 });
 
-export const sendMessage = (id, from, message, index, socket, privateKey, nKey) => dispatch => {
+export const sendMessage = (id, from, message, socket, privateKey, nKey, index, type) => dispatch => {
     const key = AES256.generateRandomKey();
     const messageDetail = {
         from: from,
         key: key,
-        message: AES256.EncryptMain({key: key, text: message}),
-        type: 'text',
+        message: AES256.EncryptMain({key: key, text: message}, type),
+        type: type,
         index: index
     };
     dispatch(addMessage(id, {...messageDetail, status: 'Sending...', time: Date.now()}));
+    const token = localStorage.getItem('token');
     fetch(baseurl+'users/'+id+'/getKeys',{
         headers: {
             'Authorization': 'Bearer '+token
@@ -183,6 +185,7 @@ export const receiveMessage = (messageDetail, users, socket, userId, privateKey,
             index: messageDetail.index
         });
         const encryptedKey = messageDetail.key;
+        const token = localStorage.getItem('token');
         fetch(baseurl+'users/'+messageDetail.from+'/getKeys',{
             headers: {
                 'Authorization': 'Bearer '+token
@@ -200,6 +203,7 @@ export const receiveMessage = (messageDetail, users, socket, userId, privateKey,
         });
     }
     if(!users[messageDetail.from]){
+        const token = localStorage.getItem('token');
         fetch(baseurl+'users/'+messageDetail.from+'/get-info',{
             headers: {
                 'Authorization': 'Bearer '+token
@@ -252,7 +256,7 @@ export const uploadProfilePicture = (image, name, type) => dispatch => {
     dispatch({type: ActionTypes.USER_PROFILE_PICTURE_LOADING});
     const body = new FormData();
     body.append("image", new Blob([decodeBase64Image(image)], {type: type}), name);
-
+    const token = localStorage.getItem('token');
     fetch("http://localhost:3000/users/upload-profile-picture", {
         body:body,
         headers: {
@@ -278,7 +282,7 @@ export const uploadProfilePicture = (image, name, type) => dispatch => {
 
 export const resetProfilePicture = () => dispatch => {
     dispatch({type: ActionTypes.USER_PROFILE_PICTURE_LOADING});
-
+    const token = localStorage.getItem('token');
     fetch("http://localhost:3000/users/reset-profile-picture", {
         headers: {
             Authorization: "Bearer "+token
@@ -302,6 +306,7 @@ export const resetProfilePicture = () => dispatch => {
 
 export const updateProfileName = (name) => dispatch => {
     dispatch({type: ActionTypes.USER_NAME_LOADING});
+    const token = localStorage.getItem('token');
     fetch(baseurl + 'users/update-name', {
         method: 'POST',
         headers: {

@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { PureComponent } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import Login from './login.component';
 import { withRouter } from 'react-router-dom';
@@ -24,6 +24,7 @@ import AddUserModal from './addusermodal.component';
 import baseurl from '../shared/baseurl';
 import io from 'socket.io-client';
 import Profile from './profile.component';
+import UtfString from 'utfstring';
 
 const mapStateToProps = state => {
     return {
@@ -37,7 +38,8 @@ const mapDispatchToProps = dispatch => {
     return {
         login: (phone) => dispatch(login(phone)),
         fetchMessages: () => dispatch(fetchMessages()),
-        sendMessage: (id, from, message, index, socket, privateKey, nKey) => dispatch(sendMessage(id, from, message, index, socket, privateKey, nKey)),
+        sendMessage: (id, from, message, socket, privateKey, nKey, index, type='utf-8') =>
+            dispatch(sendMessage(id, from, message, socket, privateKey, nKey, index, type)),
         checkUser: () => dispatch(checkUser()),
         verifyOtp: (phone, otp) => dispatch(verifyOtp(phone,otp)),
         addChatAction: (name, phone, users, toggle) => dispatch(addChat(name, phone, users, toggle)),
@@ -51,13 +53,27 @@ const mapDispatchToProps = dispatch => {
     };
 };
 
-class Main extends Component{
+const getEncoding = (message) => {
+    let maxCharCode = 0;
+    for(let i=0;i<UtfString.length(message);i++) {
+        const charCode = UtfString.charCodeAt(message, i);
+        maxCharCode = Math.max(maxCharCode, charCode);
+    }
+    const utf8Limit = 256;
+    if(maxCharCode < utf8Limit) return 'utf-8';
+    else if(maxCharCode < Math.pow(utf8Limit,2)) return 'utf-16';
+    else if(maxCharCode < Math.pow(utf8Limit,3)) return 'utf-24';
+    else return 'utf-32';
+}
+
+class Main extends PureComponent{
     constructor(props) {
         super(props);
         this.state = {
             addUserModal: false
         };
         this.toggleAddUserModal = this.toggleAddUserModal.bind(this);
+        this.sendMessageMinified = this.sendMessageMinified.bind(this);
     }
     componentDidMount() {
         this.props.checkUser();
@@ -87,14 +103,31 @@ class Main extends Component{
         }
     }
 
+    sendMessageMinified(message, chatId) {
+        const user = this.props.user.user;
+        const chat = Object.values(this.props.messages.users).filter(message => message._id === chatId)[0];
+
+        this.props.sendMessage(
+            chatId,
+            user._id,
+            message,
+            this.socket,
+            user.private,
+            user.n,
+            chat.chat.length,
+            getEncoding(message)
+        );
+    }
+
     render(){
         const ChatWithId = ({match}) => {
+            const chat = Object.values(this.props.messages.users).filter(message => message._id === match.params.chatId)[0];
             return (
-                <ChatScreen sendMessage={this.props.sendMessage} history={this.props.history}
+                <ChatScreen history={this.props.history}
                     userId={this.props.user.user._id}
                     privateKey={this.props.user.user.private} nKey={this.props.user.user.n}
                     socket = {this.socket} changeStatus={this.props.changeStatus}
-                    chat={Object.values(this.props.messages.users).filter(message => message._id === match.params.chatId)[0]}
+                    chat={chat} toggleMessageBox={this.props.toggleMessageBox}
                 />
             );
         }
@@ -140,4 +173,4 @@ class Main extends Component{
     }
 }
 
-export default withRouter(connect(mapStateToProps, mapDispatchToProps)(Main));
+export default withRouter(connect(mapStateToProps, mapDispatchToProps, null, {forwardRef: true})(Main));

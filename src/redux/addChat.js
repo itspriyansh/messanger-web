@@ -7,6 +7,6 @@ export const addChat = (state = {isLoading: false, errMess: null}, action) => {
         case ActionTypes.ADD_CHAT_ERROR:
             return {...state, isLoading: false, errMess: action.payload};
         default: 
-        return state;
+            return {...state, isLoading: false};
     }
 }

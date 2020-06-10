@@ -1,4 +1,5 @@
 const tables = require('./tables');
+const UtfSupport = require('./utf-support');
 
 const AddKey = (obj, begin) => {
 	let text = '';
@@ -179,24 +180,25 @@ const AESDecrypt = (obj) => {
 	return obj.text;
 };
 
-exports.EncryptMain = (obj) => {
+exports.EncryptMain = (obj, encoding='utf-8') => {
+	let text = UtfSupport.decodeString(obj.text, encoding);
 	let count = 0;
-	while(obj.text.length%16 !== 0){
-		obj.text += String.fromCharCode(0);
+	while(text.length%16 !== 0){
+		text += String.fromCharCode(0);
 		count++;
 	}
 	let subKeys = tables.KeyWhitening_256(obj.key);
 	let cipher = '';
 	let context = {key: subKeys};
-	for(let i=0;i<obj.text.length;i+=16){
-		context.text = obj.text.slice(i, i+16);
+	for(let i=0;i<text.length;i+=16){
+		context.text = text.slice(i, i+16);
 		cipher += AESEncrypt(context);
 	}
 	cipher += String.fromCharCode(count);
 	return cipher;
 };
 
-exports.DecryptMain = (obj) => {
+exports.DecryptMain = (obj, encoding='utf-8') => {
 	let count = obj.text.charCodeAt(obj.text.length-1);
 	obj.text = obj.text.slice(0, -1);
 	let subKeys = tables.KeyWhitening_256(obj.key);
@@ -207,6 +209,7 @@ exports.DecryptMain = (obj) => {
 		data += AESDecrypt(context);
 	}
 	if(count>0) data = data.slice(0, -1*count);
+	data = UtfSupport.encodeString(data, encoding);
 	return data;
 };
 

@@ -13,6 +13,7 @@
     "big-integer": "^1.6.48",
     "bootstrap": "^4.5.0",
     "jimp": "^0.13.0",
+    "lzutf8": "^0.5.5",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-redux": "^7.2.0",
@@ -22,7 +23,8 @@
     "redux": "^4.0.5",
     "redux-logger": "^3.0.6",
     "redux-thunk": "^2.3.0",
-    "socket.io-client": "^2.3.0"
+    "socket.io-client": "^2.3.0",
+    "utfstring": "^2.0.1"
   },
   "scripts": {
     "start": "react-scripts start",

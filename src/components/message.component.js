@@ -5,6 +5,7 @@ import AES256 from '../shared/aes-256';
 
 function Message({message, userId, prevMessage, last, image}) {
     const notMyMessage = message.from !== userId;
+    const messageText = AES256.DecryptMain({text: message.message, key: message.key}, message.type);
     return(
         <Media style={{alignSelf: notMyMessage ? 'flex-start' : 'flex-end'}}>
             {notMyMessage && (!prevMessage || prevMessage.from!==message.from)
@@ -20,7 +21,7 @@ function Message({message, userId, prevMessage, last, image}) {
                 marginLeft: (notMyMessage && prevMessage && prevMessage.from===message.from ? 40 : 10),
                 textAlign: 'left',
                 whiteSpace: 'normal'}}>
-                        {AES256.DecryptMain({text: message.message, key: message.key})}
+                        {messageText}
                 </Badge>
                 <br/>
                 <div style={{marginTop: -14,

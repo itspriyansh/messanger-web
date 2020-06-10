@@ -13,7 +13,7 @@ function AddUserModal(props) {
             setName(value);
             return;
         }
-        if(value.indexOf('+91 ')!==-1 && !isNaN(Number(value.substr(4))) && value.length<=14){
+        if(value.indexOf('+91 ')===0 && !isNaN(Number(value.substr(4))) && value.length<=14){
             setPhone(value);
         }
     }

@@ -7,7 +7,7 @@ function handleChange(event, setValue) {
     const field = event.target.name, value = event.target.value;
     let valid = true;
     if(field === 'phone') {
-        if(value.indexOf('+91 ') === -1 || value.length > 14 || isNaN(Number(value.substr(4)))) {
+        if(value.indexOf('+91 ') !== 0 || value.length > 14 || isNaN(Number(value.substr(4)))) {
             valid = false;
         }
     } else {

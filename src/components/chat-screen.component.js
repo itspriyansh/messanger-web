@@ -2,21 +2,21 @@ import React from 'react';
 import Header from './header.component';
 import baseurl from '../shared/baseurl';
 import Message from './message.component';
-import MessageBox from './message-box.component';
 
 class ChatScreen extends React.Component {
-    constructor(props){
-        super(props);
-        this.handleSubmit = this.handleSubmit.bind(this);
-    }
-
     scrollToBottom = () => {
         if(this.messagesEnd)
         this.messagesEnd.scrollIntoView();
     }
-    
+
+    componentWillUnmount() {
+        if(this.props.history.location.pathname !== `/chat/${this.props.chat._id}`) {
+            this.props.toggleMessageBox(false, null);
+        }
+    }
 
     componentDidMount() {
+        this.props.toggleMessageBox(true, this.props.chat._id);
         this.scrollToBottom();
         this.props.chat.chat.forEach((message, index) => {
             const notMyMessage = this.props.userId !== message.from;
@@ -36,17 +36,6 @@ class ChatScreen extends React.Component {
         });
     }
 
-    handleSubmit(event, message) {
-        event.preventDefault();
-        if(!message) return;
-        this.props.sendMessage(this.props.chat._id,
-            this.props.userId,
-            message,
-            this.props.chat.chat.length,
-            this.props.socket,
-            this.props.privateKey,
-            this.props.nKey);
-    }
 
     render(){
         if(!this.props.chat){
@@ -58,7 +47,7 @@ class ChatScreen extends React.Component {
                     icon={baseurl+this.props.chat.image} link={`/profile/${this.props.chat._id}`}
                     title={this.props.chat.name} back={true} />
                 <div style={{overflowY: 'scroll'}}>
-                    <div style={{display: "flex", flexDirection: "column", height: '80vh'}}>
+                    <div style={{display: "flex", flexDirection: "column", height: '78vh'}}>
                         {this.props.chat.chat.map((message, index) => {
                             return(
                                 <React.Fragment key={index}>
@@ -72,12 +61,10 @@ class ChatScreen extends React.Component {
                                 </React.Fragment>
                             );
                         })}
-                    </div>
-                    <div style={{clear: "both" }}
-                        ref={(el) => { this.messagesEnd = el; }}>
+                        <div ref={(el) => { this.messagesEnd = el; }}>
+                        </div>
                     </div>
                 </div>
-                <MessageBox handleSubmit={this.handleSubmit} />
             </div>
         );
     }

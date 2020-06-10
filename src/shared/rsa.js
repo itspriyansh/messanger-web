@@ -1,6 +1,6 @@
 const BigInt = require("big-integer");
 
-const base = 128;
+const base = 256;
 let set = '';
 
 for(let i=0;i<base;i++){

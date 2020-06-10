@@ -7,6 +7,15 @@ import AES256 from '../shared/aes-256';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faUserPlus, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 
+const getMessageToShow = (message)=> {
+    const last = message.chat.length;
+    const text =  message.chat && last ? AES256.DecryptMain({
+        text: message.chat[last-1].message,
+        key: message.chat[last-1].key
+    }, message.chat[last-1].type):'';
+    return (text.length <= 10 ? text : text.substr(0,10)+'...');
+}
+
 function Home(props) {
     return(
         <>
@@ -48,10 +57,7 @@ function Home(props) {
                                     <Media body>
                                         <Media heading className="text-dark">{message.name}</Media>
                                         <div className={!newMessageCount?"text-secondary":"text-dark font-weight-bold"}>
-                                            {message.chat && last ? AES256.DecryptMain({
-                                                text: message.chat[last-1].message,
-                                                key: message.chat[last-1].key
-                                            }):''}
+                                            {getMessageToShow(message)}
                                             {newMessageCount ? <><span>{' '}</span><span className="badge badge-pill badge-primary">{newMessageCount}</span></>:null}
                                             <span className="float-right">
                                                 {message.chat && last
