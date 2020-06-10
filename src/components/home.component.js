@@ -6,6 +6,7 @@ import baseurl from '../shared/baseurl';
 import AES256 from '../shared/aes-256';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faUserPlus, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { Redirect } from 'react-router-dom';
 
 const getMessageToShow = (message)=> {
     const last = message.chat.length;
@@ -17,6 +18,9 @@ const getMessageToShow = (message)=> {
 }
 
 function Home(props) {
+    if(!props.user.name && props.user.image.indexOf('default')!==-1) {
+        return <Redirect to='/my-profile' />
+    }
     return(
         <>
             <Header title='Messanger' dropdownOptions={[

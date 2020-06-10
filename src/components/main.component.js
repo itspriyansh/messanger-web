@@ -154,7 +154,7 @@ class Main extends PureComponent{
                                 user={this.props.messages.users[match.params.profileId]}
                                 history={this.props.history}
                                 updateChatName={this.props.updateChatName} />} />
-                        <Redirect to={(!this.props.user.user.name && this.props.user.user.image.indexOf('default')!==-1 ? '/my-profile' : '/home')} />
+                        <Redirect to='/home' />
                     </>
                     : <>
                         <Route exact path='/login' component={() => <Login login={this.props.login}

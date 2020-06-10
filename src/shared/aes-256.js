@@ -1,5 +1,6 @@
 const tables = require('./tables');
 const UtfSupport = require('./utf-support');
+const LZUTF8 = require('lzutf8');
 
 const AddKey = (obj, begin) => {
 	let text = '';
@@ -182,6 +183,11 @@ const AESDecrypt = (obj) => {
 
 exports.EncryptMain = (obj, encoding='utf-8') => {
 	let text = UtfSupport.decodeString(obj.text, encoding);
+	const compressedCodes = LZUTF8.compress(text);
+	text = '';
+	for(let i=0;i<compressedCodes.length;i++) {
+		text += String.fromCharCode(compressedCodes[i]);
+	}
 	let count = 0;
 	while(text.length%16 !== 0){
 		text += String.fromCharCode(0);
@@ -209,6 +215,11 @@ exports.DecryptMain = (obj, encoding='utf-8') => {
 		data += AESDecrypt(context);
 	}
 	if(count>0) data = data.slice(0, -1*count);
+	const compressedCodes = new Uint8Array(data.length);
+	for(let i=0;i<data.length;i++) {
+		compressedCodes[i] = data.charCodeAt(i);
+	}
+	data = LZUTF8.decompress(compressedCodes);
 	data = UtfSupport.encodeString(data, encoding);
 	return data;
 };
