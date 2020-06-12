@@ -4,6 +4,11 @@ import baseurl from '../shared/baseurl';
 import Message from './message.component';
 
 class ChatScreen extends React.Component {
+    constructor() {
+        super();
+        this.markSeen = this.markSeen.bind(this);
+        this.scrollToBottom = this.scrollToBottom.bind(this);
+    }
     scrollToBottom = () => {
         if(this.messagesEnd)
         this.messagesEnd.scrollIntoView();
@@ -18,24 +23,23 @@ class ChatScreen extends React.Component {
     componentDidMount() {
         this.props.toggleMessageBox(true, this.props.chat._id);
         this.scrollToBottom();
-        this.props.chat.chat.forEach((message, index) => {
-            const notMyMessage = this.props.userId !== message.from;
-            if(notMyMessage && message.status === 'new') {
-                this.props.changeStatus('', message.from, index, this.props.socket, this.props.userId, message.index);
-            }
-        });
+        this.markSeen();
     }
       
     componentDidUpdate() {
         this.scrollToBottom();
-        this.props.chat.chat.forEach((message, index) => {
+        this.markSeen();
+    }
+
+    markSeen() {
+        Object.keys(this.props.chat.chat).forEach((index) => {
+            const message = this.props.chat.chat[index];
             const notMyMessage = this.props.userId !== message.from;
             if(notMyMessage && message.status === 'new') {
                 this.props.changeStatus('', message.from, index, this.props.socket, this.props.userId, message.index);
             }
         });
     }
-
 
     render(){
         if(!this.props.chat){
@@ -48,16 +52,18 @@ class ChatScreen extends React.Component {
                     title={this.props.chat.name} back={true} />
                 <div style={{overflowY: 'scroll'}}>
                     <div style={{display: "flex", flexDirection: "column", height: '78vh'}}>
-                        {this.props.chat.chat.map((message, index) => {
+                        {Object.values(this.props.chat.chat)
+                        .sort((message1, message2) => new Date(message1.time) - new Date(message2.time))
+                        .map((message, index) => {
                             return(
                                 <React.Fragment key={index}>
-                                    {!index || new Date(message.time).toLocaleDateString() !== new Date(this.props.chat.chat[index-1].time).toLocaleDateString()
+                                    {!index || new Date(message.time).toLocaleDateString() !== new Date(Object.values(this.props.chat.chat)[index-1].time).toLocaleDateString()
                                     ? <div className="text-center my-3">{new Date(message.time).toLocaleDateString()}</div>
                                     : null}
                                     <Message message={message} userId={this.props.userId}
-                                    last={index+1 === this.props.chat.chat.length}
+                                    last={index+1 === Object.values(this.props.chat.chat).length}
                                     image={this.props.chat.image}
-                                    prevMessage={(index ? this.props.chat.chat[index-1] : null)} />
+                                    prevMessage={(index ? Object.values(this.props.chat.chat)[index-1] : null)} />
                                 </React.Fragment>
                             );
                         })}

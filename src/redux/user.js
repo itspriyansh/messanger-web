@@ -22,7 +22,10 @@ export const User = (state={
         case ActionTypes.USER_NAME_LOADING:
             return {...state, isNameLoading: true, color: 'red'};
         case ActionTypes.LOGOUT:
-            localStorage.clear();
+            localStorage.removeItem("token");
+            if(action.payload) {
+                localStorage.clear();
+            }
             return {...state, user: null};
         case ActionTypes.USER_ERR_MESSAGE:
             return {...state, isLoading: false,

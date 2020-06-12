@@ -11,6 +11,7 @@ exports.Encryption = (num, obj) => {
 	let x = BigInt(num, base, set, true);
 	let publicKey = BigInt(obj.public, base, set, true);
 	let n = BigInt(obj.n, base, set, true);
+	if(x.compare(n) !== -1) console.log("Error: key is outof range");
 	let y = x.modPow(publicKey, n).toString(base, set);
 	return y;
 };

@@ -9,12 +9,14 @@ import { faUser, faUserPlus, faSignOutAlt } from '@fortawesome/free-solid-svg-ic
 import { Redirect } from 'react-router-dom';
 
 const getMessageToShow = (message)=> {
-    const last = message.chat.length;
-    const text =  message.chat && last ? AES256.DecryptMain({
-        text: message.chat[last-1].message,
-        key: message.chat[last-1].key
-    }, message.chat[last-1].type):'';
-    return (text.length <= 10 ? text : text.substr(0,10)+'...');
+    const chats = Object.values(message.chat)
+        .sort((message1, message2) => new Date(message1.time) - new Date(message2.time));
+    const last = chats.length;
+    const text =  chats && last ? AES256.DecryptMain({
+        text: chats[last-1].message,
+        key: chats[last-1].key
+    }, chats[last-1].type):'';
+    return (text.length <= 18 ? text : text.substr(0,15)+'...');
 }
 
 function Home(props) {
@@ -39,15 +41,17 @@ function Home(props) {
                 {Object.values(props.messages)
                 .sort((message1, message2) => {
                     const getTime = (message) => {
-                        return (message.chat && message.chat.length ? message.chat[message.chat.length-1].time : message.timestamp);
+                        const chats = Object.values(message.chat);
+                        return (chats && chats.length ? chats[chats.length-1].time : message.timestamp);
                     }
                     const time1 = new Date(getTime(message1));
                     const time2 = new Date(getTime(message2));
                     return time2-time1;
                 })
                 .map((message, index) => {
-                    const last = (message.chat? message.chat.length : 0);
-                    const newMessageCount = message.chat.reduce((count, chat) => {
+                    const chats = Object.values(message.chat);
+                    const last = (chats? chats.length : 0);
+                    const newMessageCount = chats.reduce((count, chat) => {
                         if(chat.status === 'new') count++;
                         return count;
                     }, 0);
@@ -64,12 +68,12 @@ function Home(props) {
                                             {getMessageToShow(message)}
                                             {newMessageCount ? <><span>{' '}</span><span className="badge badge-pill badge-primary">{newMessageCount}</span></>:null}
                                             <span className="float-right">
-                                                {message.chat && last
-                                                ? new Date(message.chat[last-1].time).toLocaleDateString() === new Date().toLocaleDateString()
-                                                ? new Date()-new Date(message.chat[last-1].time) <= 60000
+                                                {chats && last
+                                                ? new Date(chats[last-1].time).toLocaleDateString() === new Date().toLocaleDateString()
+                                                ? new Date()-new Date(chats[last-1].time) <= 60000
                                                 ? 'Now'
-                                                : new Date(message.chat[last-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                                                : new Date(message.chat[last-1].time).toLocaleDateString()
+                                                : new Date(chats[last-1].time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                                                : new Date(chats[last-1].time).toLocaleDateString()
                                                 :  new Date(message.timestamp).toLocaleDateString()}
                                             </span>
                                         </div>

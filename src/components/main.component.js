@@ -11,12 +11,13 @@ import {
     verifyOtp,
     addChat,
     logout,
-    receiveMessage,
+    receiveMessages,
     changeStatus ,
     uploadProfilePicture,
     updateProfileName,
     resetProfilePicture,
-    updateChatName
+    updateChatName,
+    changeStatusInBulk
 } from '../redux/ActionCreators';
 import Home from './home.component';
 import ChatScreen from './chat-screen.component';
@@ -43,13 +44,18 @@ const mapDispatchToProps = dispatch => {
         checkUser: () => dispatch(checkUser()),
         verifyOtp: (phone, otp) => dispatch(verifyOtp(phone,otp)),
         addChatAction: (name, phone, users, toggle) => dispatch(addChat(name, phone, users, toggle)),
-        logout: () => dispatch(logout()),
-        receiveMessage: (messageDetail, users, socket, userId, privateKey, nKey) => dispatch(receiveMessage(messageDetail, users, socket, userId, privateKey, nKey)),
-        changeStatus: (status, userId, index, socket=null, from=null, foreignIndex=null) => dispatch(changeStatus(status, userId, index, socket, from, foreignIndex)),
+        logout: (socket) => {
+            dispatch(logout(socket))
+            socket=null;
+        },
+        receiveMessages: (messageDetail, users, socket, userId, privateKey, nKey) =>
+            dispatch(receiveMessages(messageDetail, users, socket, userId, privateKey, nKey)),
+        changeStatus: (status, userId, index, socket, from, foreignIndex=null) => dispatch(changeStatus(status, userId, index, socket, from, foreignIndex)),
         uploadProfilePicture: (image, name, type) => dispatch(uploadProfilePicture(image, name, type)),
         updateProfileName: name => dispatch(updateProfileName(name)),
         resetProfilePicture: () => dispatch(resetProfilePicture()),
-        updateChatName: (id, name) => dispatch(updateChatName(id, name))
+        updateChatName: (id, name) => dispatch(updateChatName(id, name)),
+        changeStatusInBulk: (statusList) => dispatch(changeStatusInBulk(statusList))
     };
 };
 
@@ -74,9 +80,13 @@ class Main extends PureComponent{
         };
         this.toggleAddUserModal = this.toggleAddUserModal.bind(this);
         this.sendMessageMinified = this.sendMessageMinified.bind(this);
+        this.setUpSocket = this.setUpSocket.bind(this);
+        this.dispatchPendingMessagesAndStatus = this.dispatchPendingMessagesAndStatus.bind(this);
     }
     componentDidMount() {
         this.props.checkUser();
+        this.setUpSocket();
+        this.dispatchPendingMessagesAndStatus();
     }
 
     toggleAddUserModal() {
@@ -86,26 +96,63 @@ class Main extends PureComponent{
     }
 
     componentDidUpdate() {
+        this.setUpSocket();
+        this.dispatchPendingMessagesAndStatus();
+    }
+
+    setUpSocket() {
         if(!this.socket && this.props.user.user){
             this.socket = io.connect(baseurl, {query: {token: localStorage.getItem('token')}});
             this.socket.on(this.props.user.user._id, data => {
-                this.props.receiveMessage(data.messageDetail,
-                    this.props.messages.users,
-                    this.socket,
-                    this.props.user.user._id,
-                    this.props.user.user.private,
-                    this.props.user.user.n);
+                if(this.props.user.user) {
+                    this.props.receiveMessages([data.messageDetail],
+                        this.props.messages.users,
+                        this.socket,
+                        this.props.user.user._id,
+                        this.props.user.user.private,
+                        this.props.user.user.n);
+                }
                 
             });
             this.socket.on(this.props.user.user._id+'Acknoledge', data => {
-                this.props.changeStatus(data.status, data.to, data.index);
+                this.socket.emit(`AcknoledgementReceived-${JSON.stringify(data)}`, data);
+                this.props.changeStatus(
+                    data.status,
+                    data.to,
+                    data.index,
+                    this.socket,
+                    this.props.user.user._id
+                );
             });
         }
     }
 
+    dispatchPendingMessagesAndStatus() {
+        if(!this.props.user.user) return;
+        const pendingMessages = JSON.parse(localStorage.getItem("pendingMessages"));
+        if(pendingMessages.length) {
+            console.log(pendingMessages)
+            localStorage.setItem("pendingMessages", '[]');
+            this.props.receiveMessages(
+                pendingMessages,
+                this.props.messages.users,
+                this.socket,
+                this.props.user.user._id,
+                this.props.user.user.private,
+                this.props.user.user.n
+            );
+        }
+        const pendingStatusList = JSON.parse(localStorage.getItem("pendingStatusList"));
+        if(pendingStatusList.length) {
+            localStorage.setItem("pendingStatusList", '[]');
+            this.props.changeStatusInBulk(pendingStatusList
+            .filter(status => this.props.messages.users[status.to] && new Date(status.createdAt) > new Date(this.props.messages.users[status.to].timestamp)));
+        }
+        
+    }
+
     sendMessageMinified(message, chatId) {
         const user = this.props.user.user;
-        const chat = Object.values(this.props.messages.users).filter(message => message._id === chatId)[0];
 
         this.props.sendMessage(
             chatId,
@@ -114,7 +161,7 @@ class Main extends PureComponent{
             this.socket,
             user.private,
             user.n,
-            chat.chat.length,
+            String(new Date()-0),
             getEncoding(message)
         );
     }
@@ -140,7 +187,7 @@ class Main extends PureComponent{
                         <Route exact path='/home' component={() => <Home user={this.props.user.user}
                             messages={this.props.messages.users}
                             toggleAddUserModal={this.toggleAddUserModal}
-                            logout={this.props.logout} history={this.props.history} />} />
+                            logout={() => this.props.logout(this.socket)} history={this.props.history} />} />
                         <Route exact path='/chat/:chatId' component={ChatWithId} />
                         <Route exact path='/my-profile' component={() => <Profile user={this.props.user.user}
                             uploadProfilePicture={this.props.uploadProfilePicture}

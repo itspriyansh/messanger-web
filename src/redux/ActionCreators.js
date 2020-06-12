@@ -2,6 +2,7 @@ import * as ActionTypes from './ActionTypes';
 import baseurl from '../shared/baseurl';
 import AES256 from '../shared/aes-256';
 import RSA from '../shared/rsa';
+import swal from 'sweetalert';
 
 export const submitPhone = (message, color='red', phone='+91 ') => ({
     type: ActionTypes.SUBMIT_PHONE,
@@ -34,9 +35,16 @@ export const getMessages = (messages) => ({
     payload: messages
 });
 
-const initialiseLocalStorage = () => {
-    localStorage.clear();
-    localStorage.setItem('users', '{}');
+const initialiseLocalStorage = (token, user) => {
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    if(!storedUser || storedUser._id !== user._id) {
+        localStorage.clear();
+        localStorage.setItem('users', '{}');
+        localStorage.setItem('pendingMessages', '[]');
+        localStorage.setItem('pendingStatusList', '[]');
+    }
+    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("token", token);
 }
 
 export const fetchMessages = () => (dispatch) => {
@@ -66,8 +74,11 @@ export const checkUser = () => dispatch => {
     }).then(response => response.json())
     .then(response => {
         if(response.success){
-            dispatch(tryUser(JSON.parse(localStorage.getItem('user'))));
-            return dispatch(fetchMessages());
+            const user = tryUser(JSON.parse(localStorage.getItem('user')));
+            dispatch(user);
+            localStorage.setItem("pendingMessages", JSON.stringify(response.messages));
+            localStorage.setItem("pendingStatusList", JSON.stringify(response.statusList));
+            return dispatch(fetchMessages());;
         } else {
             return dispatch(tryUser(null));
         }
@@ -90,13 +101,11 @@ export const verifyOtp = (phone, otp) => dispatch => {
     }).then(response => response.json())
     .then(response => {
         if(response.success) {
-            initialiseLocalStorage();
-            localStorage.setItem('token', response.token);
-            localStorage.setItem('user', JSON.stringify(response.user));
+            initialiseLocalStorage(response.token, response.user);
             (checkUser())(dispatch);
-            alert(response.message);
+            swal("Welcome", response.message, "success");
         } else {
-            dispatch(submitPhone(response.err, response.err.indexOf('OTP') === -1 ? 'red' : 'orange'));
+            dispatch(submitPhone(response.err, response.err.indexOf('OTP') === -1 ? 'red' : 'orange', phone));
         }
     }).catch(err => {
         dispatch(submitPhone(err.message));
@@ -130,8 +139,8 @@ export const addChat = (name, phone, users, toggle) => dispatch => {
         if(response.success){
             response.user.name = name;
             dispatch({
-                type: ActionTypes.ADD_USER_TO_CHAT,
-                payload: response.user
+                type: ActionTypes.ADD_USERS_TO_CHAT,
+                payload: [response.user]
             });
             toggle();
         } else {
@@ -142,9 +151,24 @@ export const addChat = (name, phone, users, toggle) => dispatch => {
     });
 }
 
-export const logout = () => dispatch => {
-    dispatch({type: ActionTypes.LOGOUT});
-    dispatch(checkUser());
+export const logout = (socket) => dispatch => {
+    socket.emit("end");
+    swal({
+        title: "Do you want to delete your chat data?",
+        text: "Once deleted, you will not be able to recover your data!",
+        icon: "warning",
+        buttons: true,
+        dangerMode: true,
+    })
+        .then((clearData) => {
+    if (clearData) {
+        dispatch({type: ActionTypes.LOGOUT, payload: true});
+        dispatch(checkUser());
+    } else {
+        dispatch({type: ActionTypes.LOGOUT, payload: false});
+        dispatch(checkUser());
+    }
+    });
 }
 
 export const addMessage = (id, messageDetail) => ({
@@ -176,45 +200,61 @@ export const sendMessage = (id, from, message, socket, privateKey, nKey, index, 
     });
 }
 
-export const receiveMessage = (messageDetail, users, socket, userId, privateKey, nKey) => dispatch => {
+export const receiveMessages = (messageDetails, users, socket, userId, privateKey, nKey) => dispatch => {
     const dispatchReceiveMessage = () => {
-        socket.emit('UpdateStatus', {
-            status: "Delivered",
-            from: messageDetail.from,
-            to: userId,
-            index: messageDetail.index
-        });
-        const encryptedKey = messageDetail.key;
         const token = localStorage.getItem('token');
-        fetch(baseurl+'users/'+messageDetail.from+'/getKeys',{
+        fetch(baseurl+'users/getKeysInBulk',{
+            method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'Authorization': 'Bearer '+token
-            }
+            },
+            body: JSON.stringify({users: messageDetails.map(messageDetail => messageDetail.from)})
         }).then(response => response.json())
         .then(keys => {
-            let decryptedKey = RSA.Decryption(encryptedKey, {private: keys.public, n: keys.n});
-            decryptedKey = RSA.Decryption(decryptedKey, {private: privateKey, n: nKey});
-            // let decryptedKey = RSA.Decryption(encryptedKey, {private: privateKey, n: nKey});
-            messageDetail.key = decryptedKey;     
+            messageDetails.forEach(messageDetail => {
+                const encryptedKey = messageDetail.key;
+                let decryptedKey = RSA.Decryption(encryptedKey, {private: keys[messageDetail.from].public, n: keys[messageDetail.from].n});
+                decryptedKey = RSA.Decryption(decryptedKey, {private: privateKey, n: nKey});
+                // let decryptedKey = RSA.Decryption(encryptedKey, {private: privateKey, n: nKey});
+                messageDetail.key = decryptedKey;     
+            });
             dispatch({
-                type: ActionTypes.RECEIVE_MESSAGE,
-                payload: messageDetail
+                type: ActionTypes.RECEIVE_MESSAGES,
+                payload: messageDetails
+            });
+        });
+        messageDetails.forEach(messageDetail => {
+            socket.emit('UpdateStatus', {
+                status: "Delivered",
+                from: messageDetail.from,
+                to: userId,
+                index: messageDetail.index
             });
         });
     }
-    if(!users[messageDetail.from]){
+    const newUsers = new Set();
+    messageDetails.forEach(messageDetail=> {
+        if(!users[messageDetail.from]){
+            newUsers.add(messageDetail.from);
+        }
+    });
+    if(newUsers.size){
         const token = localStorage.getItem('token');
-        fetch(baseurl+'users/'+messageDetail.from+'/get-info',{
+        fetch(baseurl+'users/get-info-in-bulk',{
+            method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'Authorization': 'Bearer '+token
-            }
+            },
+            body: JSON.stringify({users: [...newUsers]})
         })
         .then(response => response.json())
         .then(response => {
             if(response.success){
                 dispatch({
-                    type: ActionTypes.ADD_USER_TO_CHAT,
-                    payload: {...response.user, name: response.user.phone}
+                    type: ActionTypes.ADD_USERS_TO_CHAT,
+                    payload: response.users
                 });
                 dispatchReceiveMessage();
             }
@@ -222,12 +262,12 @@ export const receiveMessage = (messageDetail, users, socket, userId, privateKey,
     } else dispatchReceiveMessage();
 }
 
-export const changeStatus = (status, userId, index, socket=null, from=null, foreignIndex=null) => dispatch => {
-    if(socket){
+export const changeStatus = (status, userId, index, socket, myUserId, foreignIndex=null) => dispatch => {
+    if(foreignIndex){
         socket.emit("UpdateStatus", {
             status: "Seen",
             from: userId,
-            to: from,
+            to: myUserId,
             index: foreignIndex
         });
     }
@@ -238,7 +278,20 @@ export const changeStatus = (status, userId, index, socket=null, from=null, fore
             userId: userId,
             index: index
         }
-    })
+    });
+    socket.emit('AcknoledgementReceived', {
+        status: status,
+        from: userId,
+        to: myUserId,
+        index: index
+    });
+}
+
+export const changeStatusInBulk = (statusList) => dispatch => {
+    dispatch({
+        type: ActionTypes.UPDATE_STATUS_IN_BULK,
+        payload: statusList
+    });
 }
 
 const decodeBase64Image = (dataString) => {
