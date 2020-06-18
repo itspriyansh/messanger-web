@@ -19,8 +19,8 @@ class App extends PureComponent {
     this.messageBox.toggleMessageBox(see, chatId);
   }
 
-  sendMessage(message, chatId) {
-    this.mainComponent.sendMessageMinified(message, chatId);
+  sendMessage(message, chatId, type=null, name=null, index=null) {
+    this.mainComponent.sendMessageMinified(message, chatId, type, name, index);
   }
 
   render() {

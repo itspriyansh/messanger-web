@@ -17,7 +17,8 @@ import {
     updateProfileName,
     resetProfilePicture,
     updateChatName,
-    changeStatusInBulk
+    changeStatusInBulk,
+    deleteMessage
 } from '../redux/ActionCreators';
 import Home from './home.component';
 import ChatScreen from './chat-screen.component';
@@ -39,8 +40,8 @@ const mapDispatchToProps = dispatch => {
     return {
         login: (phone) => dispatch(login(phone)),
         fetchMessages: () => dispatch(fetchMessages()),
-        sendMessage: (id, from, message, socket, privateKey, nKey, index, type='utf-8') =>
-            dispatch(sendMessage(id, from, message, socket, privateKey, nKey, index, type)),
+        sendMessage: (id, from, message, socket, privateKey, nKey, index, type='utf-8', name=null) =>
+            dispatch(sendMessage(id, from, message, socket, privateKey, nKey, index, type, name)),
         checkUser: () => dispatch(checkUser()),
         verifyOtp: (phone, otp) => dispatch(verifyOtp(phone,otp)),
         addChatAction: (name, phone, users, toggle) => dispatch(addChat(name, phone, users, toggle)),
@@ -55,7 +56,8 @@ const mapDispatchToProps = dispatch => {
         updateProfileName: name => dispatch(updateProfileName(name)),
         resetProfilePicture: () => dispatch(resetProfilePicture()),
         updateChatName: (id, name) => dispatch(updateChatName(id, name)),
-        changeStatusInBulk: (statusList) => dispatch(changeStatusInBulk(statusList))
+        changeStatusInBulk: (statusList) => dispatch(changeStatusInBulk(statusList)),
+        deleteMessage: (id, index) => dispatch(deleteMessage(id, index))
     };
 };
 
@@ -131,7 +133,6 @@ class Main extends PureComponent{
         if(!this.props.user.user) return;
         const pendingMessages = JSON.parse(localStorage.getItem("pendingMessages"));
         if(pendingMessages.length) {
-            console.log(pendingMessages)
             localStorage.setItem("pendingMessages", '[]');
             this.props.receiveMessages(
                 pendingMessages,
@@ -151,7 +152,7 @@ class Main extends PureComponent{
         
     }
 
-    sendMessageMinified(message, chatId) {
+    sendMessageMinified(message, chatId, type=null, name=null, index=null) {
         const user = this.props.user.user;
 
         this.props.sendMessage(
@@ -161,8 +162,9 @@ class Main extends PureComponent{
             this.socket,
             user.private,
             user.n,
-            String(new Date()-0),
-            getEncoding(message)
+            (index ? index : String(new Date()-0)),
+            (type? type : getEncoding(message)),
+            name
         );
     }
 
@@ -175,6 +177,8 @@ class Main extends PureComponent{
                     privateKey={this.props.user.user.private} nKey={this.props.user.user.n}
                     socket = {this.socket} changeStatus={this.props.changeStatus}
                     chat={chat} toggleMessageBox={this.props.toggleMessageBox}
+                    sendMessage={this.props.sendMessage}
+                    deleteMessage={this.props.deleteMessage}
                 />
             );
         }
@@ -201,7 +205,10 @@ class Main extends PureComponent{
                                 user={this.props.messages.users[match.params.profileId]}
                                 history={this.props.history}
                                 updateChatName={this.props.updateChatName} />} />
-                        <Redirect to='/home' />
+                        {(!this.props.user.user.name && this.props.user.user.image.indexOf('default')!==-1)
+                        ? <Redirect to='my-profile' />
+                        : <Redirect to='home' />
+                        }
                     </>
                     : <>
                         <Route exact path='/login' component={() => <Login login={this.props.login}

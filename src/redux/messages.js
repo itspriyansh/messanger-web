@@ -67,6 +67,13 @@ export const Messages = (state = {users: {}}, action) => {
                 localStorage.setItem(userId, JSON.stringify(users[userId].chat));
             });
             return {...state, users: users};
+        case ActionTypes.DELETE_MESSAGE:
+            const toId = action.payload.id;
+            const toIndex = action.payload.index;
+            users = state.users;
+            delete users[toId].chat[toIndex];
+            localStorage.setItem(toId, JSON.stringify(users[toId].chat));
+            return {...state, users: users};
         default:
             return state;
     }

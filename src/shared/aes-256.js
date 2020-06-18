@@ -1,6 +1,7 @@
 const tables = require('./tables');
 const UtfSupport = require('./utf-support');
 const LZUTF8 = require('lzutf8');
+const crypto = require('crypto');
 
 const AddKey = (obj, begin) => {
 	let text = '';
@@ -182,53 +183,55 @@ const AESDecrypt = (obj) => {
 };
 
 exports.EncryptMain = (obj, encoding='utf-8') => {
-	let text = UtfSupport.decodeString(obj.text, encoding);
-	const compressedCodes = LZUTF8.compress(text);
-	text = '';
-	for(let i=0;i<compressedCodes.length;i++) {
-		text += String.fromCharCode(compressedCodes[i]);
-	}
-	let count = 0;
-	while(text.length%16 !== 0){
-		text += String.fromCharCode(0);
-		count++;
-	}
-	let subKeys = tables.KeyWhitening_256(obj.key);
-	let cipher = '';
-	let context = {key: subKeys};
-	for(let i=0;i<text.length;i+=16){
-		context.text = text.slice(i, i+16);
-		cipher += AESEncrypt(context);
-	}
-	cipher += String.fromCharCode(count);
-	return cipher;
+	return new Promise(resolve => {
+		let text = UtfSupport.decodeString(obj.text, encoding);
+		const compressedCodes = LZUTF8.compress(text);
+		text = '';
+		for(let i=0;i<compressedCodes.length;i++) {
+			text += String.fromCharCode(compressedCodes[i]);
+		}
+		let count = 0;
+		while(text.length%16 !== 0){
+			text += String.fromCharCode(0);
+			count++;
+		}
+		let subKeys = tables.KeyWhitening_256(obj.key);
+		let cipher = '';
+		let context = {key: subKeys};
+		for(let i=0;i<text.length;i+=16){
+			context.text = text.slice(i, i+16);
+			cipher += AESEncrypt(context);
+		}
+		cipher += String.fromCharCode(count);
+		resolve(cipher);
+	});
 };
 
 exports.DecryptMain = (obj, encoding='utf-8') => {
-	let count = obj.text.charCodeAt(obj.text.length-1);
-	obj.text = obj.text.slice(0, -1);
-	let subKeys = tables.KeyWhitening_256(obj.key);
-	let data = '';
-	let context = {key: subKeys};
-	for(let i=0;i<obj.text.length;i+=16){
-		context.text = obj.text.slice(i, i+16);
-		data += AESDecrypt(context);
-	}
-	if(count>0) data = data.slice(0, -1*count);
-	const compressedCodes = new Uint8Array(data.length);
-	for(let i=0;i<data.length;i++) {
-		compressedCodes[i] = data.charCodeAt(i);
-	}
-	data = LZUTF8.decompress(compressedCodes);
-	data = UtfSupport.encodeString(data, encoding);
-	return data;
+	return new Promise(resolve => {
+		let count = obj.text.charCodeAt(obj.text.length-1);
+		obj.text = obj.text.slice(0, -1);
+		let subKeys = tables.KeyWhitening_256(obj.key);
+		let data = '';
+		let context = {key: subKeys};
+		for(let i=0;i<obj.text.length;i+=16){
+			context.text = obj.text.slice(i, i+16);
+			data += AESDecrypt(context);
+		}
+		if(count>0) data = data.slice(0, -1*count);
+		const compressedCodes = new Uint8Array(data.length);
+		for(let i=0;i<data.length;i++) {
+			compressedCodes[i] = data.charCodeAt(i);
+		}
+		data = LZUTF8.decompress(compressedCodes);
+		data = UtfSupport.encodeString(data, encoding);
+		resolve(data);
+	});
 };
 
 exports.generateRandomKey = () => {
-	let key = '';
-	for(let i=0;i<32;i++) {
-		const charCode = Math.floor(Math.random() * 128);
-		key += String.fromCharCode(charCode);
-	}
+	const buffer = new Uint8Array(32);
+	crypto.randomFillSync(buffer);
+	const key = buffer.toString('utf8');
 	return key;
-}
+};

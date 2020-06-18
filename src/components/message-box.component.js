@@ -2,6 +2,7 @@ import React, { PureComponent } from 'react';
 import { Form, Button, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPaperPlane, faCamera, faImage, faVideo, faPaste } from '@fortawesome/free-solid-svg-icons';
+import imageCompression from 'browser-image-compression';
 
 class MessageBox extends PureComponent {
 
@@ -16,6 +17,8 @@ class MessageBox extends PureComponent {
         this.toggleMediaDropdown = this.toggleMediaDropdown.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
         this.toggleMessageBox = this.toggleMessageBox.bind(this);
+        this.handleSendFile = this.handleSendFile.bind(this);
+        this.handleUploadFile = this.handleUploadFile.bind(this);
     }
 
     toggleMessageBox(render, chatId) {
@@ -36,6 +39,30 @@ class MessageBox extends PureComponent {
 
     toggleMediaDropdown = () => {
         this.setState({mediaDropdown: !this.state.mediaDropdown});
+    }
+
+    handleSendFile(type) {
+        this[type].click();
+    }
+    
+    async handleUploadFile(event) {
+        let file = event.target.files[0];
+        const type = event.target.id;
+        if(type === 'image') {
+            file = await imageCompression(file, {
+                maxSizeMB: 1,
+                maxWidthOrHeight: 600,
+                useWebWorker: true
+            });
+        }
+        const name = file.name;
+        var reader = new FileReader();
+        reader.readAsDataURL(file);
+        // reader.readAsText(file, "UTF-8");
+        const index = String(Date.now()-0);
+        reader.onload = (event) => {
+            this.props.sendMessage(event.target.result, this.state.chatId, type, name, index);
+        }
     }
 
     render() {
@@ -64,15 +91,15 @@ class MessageBox extends PureComponent {
                             <FontAwesomeIcon icon={faCamera} size="lg" />
                         </DropdownToggle>
                         <DropdownMenu>
-                            <DropdownItem>
+                            <DropdownItem onClick={event => this.handleSendFile("doc")}>
                                 <FontAwesomeIcon icon={faPaste} />{'  '}Document
                             </DropdownItem>
                             <DropdownItem divider></DropdownItem>
-                            <DropdownItem>
+                            <DropdownItem onClick={event => this.handleSendFile("image")}>
                                 <FontAwesomeIcon icon={faImage} />{'  '}Image
                             </DropdownItem>
                             <DropdownItem divider></DropdownItem>
-                            <DropdownItem>
+                            <DropdownItem onClick={event => this.handleSendFile("video")}>
                                 <FontAwesomeIcon icon={faVideo} />{'  '}Video
                             </DropdownItem>
                         </DropdownMenu>
@@ -81,6 +108,15 @@ class MessageBox extends PureComponent {
                         style={{height: 60, width: 60, marginTop: -60, marginLeft: 'auto', borderRadius: '50%'}}>
                         <FontAwesomeIcon icon={faPaperPlane} size="lg" />
                     </Button>
+                    <input type="file" id="doc" ref={ref => this.doc=ref} style={{display: "none"}}
+                        accept=".xlsx,.xls,image/*,.doc, .docx,.ppt, .pptx,.txt,.pdf"
+                        onChange={this.handleUploadFile} />
+                    <input type="file" id="image" ref={ref => this.image=ref} style={{display: "none"}}
+                        accept="image/*" onChange={this.handleUploadFile} />
+                    <input type="file" id="video" ref={ref => this.video=ref} style={{display: "none"}}
+                        acccept="video/mp4,video/x-m4v,video/*" capture="camcorder;fileupload"
+                        onChange={this.handleUploadFile} />
+
                 </Form>
                 : null}
             </>

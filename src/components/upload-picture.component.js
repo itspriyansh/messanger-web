@@ -18,7 +18,7 @@ function UploadPicture(props) {
         changeCount === 1 ? setDisabled(false) : setChangeCount(changeCount+1);
     };
 
-    const onSubmit = () => {
+    const onSubmit = async() => {
         props.uploadProfilePicture(value.result, value.filename, value.filetype);
         setValue({
             result: null,

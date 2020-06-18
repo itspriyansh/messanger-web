@@ -36,13 +36,6 @@ function Login(props) {
         return <Loading />;
     }
 
-    if(props.user.user) {
-        if(!props.user.user.name){
-            return this.props.history.push('/profile');
-        }
-        return this.props.history.push('/home');
-    }
-
     return(
         <Container>
             <Row>

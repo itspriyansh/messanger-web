@@ -3,6 +3,7 @@ import baseurl from '../shared/baseurl';
 import AES256 from '../shared/aes-256';
 import RSA from '../shared/rsa';
 import swal from 'sweetalert';
+import compressjs from 'keybase-compressjs';
 
 export const submitPhone = (message, color='red', phone='+91 ') => ({
     type: ActionTypes.SUBMIT_PHONE,
@@ -10,7 +11,7 @@ export const submitPhone = (message, color='red', phone='+91 ') => ({
 });
 
 export const login = (phone) => dispatch => {
-    dispatch({type: ActionTypes.USER_LOADING});
+    dispatch({type: ActionTypes.USER_LOADING})
     fetch(baseurl + 'users/login',{
         method: 'POST',
         headers: {
@@ -176,27 +177,47 @@ export const addMessage = (id, messageDetail) => ({
     payload: {messageDetail: messageDetail, id: id}
 });
 
-export const sendMessage = (id, from, message, socket, privateKey, nKey, index, type) => dispatch => {
-    const key = AES256.generateRandomKey();
-    const messageDetail = {
-        from: from,
-        key: key,
-        message: AES256.EncryptMain({key: key, text: message}, type),
-        type: type,
-        index: index
-    };
-    dispatch(addMessage(id, {...messageDetail, status: 'Sending...', time: Date.now()}));
-    const token = localStorage.getItem('token');
-    fetch(baseurl+'users/'+id+'/getKeys',{
-        headers: {
-            'Authorization': 'Bearer '+token
+export const sendMessage = (id, from, message, socket, privateKey, nKey, index, type, name=null) => dispatch => {
+    if(type === 'doc' || type === 'image') {
+        const algorithm = compressjs.Bzip2;
+        const compressedBuffer = algorithm.compressFile(new Buffer(message, 'utf8'));
+        let compressedMessage = '';
+        for(let i=0;i<compressedBuffer.length;i++){
+            compressedMessage += String.fromCharCode(compressedBuffer[i]);
         }
-    }).then(response => response.json())
-    .then(keys => {
-        let encryptedKey = RSA.Encryption(key, {public: keys.public, n: keys.n});
-        encryptedKey = RSA.Encryption(encryptedKey, {public: privateKey, n: nKey});
-        // let encryptedKey = RSA.Encryption(key, {public: keys.public, n: keys.n});
-        socket.emit('send', {id: id, messageDetail: {...messageDetail, key: encryptedKey}});
+        message = compressedMessage;
+    }  else if(type === 'video') {
+
+    }
+    const key = AES256.generateRandomKey();
+    AES256.EncryptMain({key: key, text: message}, type)
+    .then(encryptedMessage => {
+        const messageDetail = {
+            from: from,
+            key: key,
+            message: encryptedMessage,
+            type: type,
+            index: index
+        };
+        if(name) messageDetail.name = name;
+        dispatch(addMessage(id, {...messageDetail, status: 'Sending...', time: Date.now()}));
+        setTimeout(() => {
+            if(JSON.parse(localStorage.getItem(id))[index].status === 'Sending...') {
+                dispatch(changeStatus("Unable To Send", id, index, socket, from));
+            }
+        }, 10000);
+        const token = localStorage.getItem('token');
+        fetch(baseurl+'users/'+id+'/getKeys',{
+            headers: {
+                'Authorization': 'Bearer '+token
+            }
+        }).then(response => response.json())
+        .then(keys => {
+            let encryptedKey = RSA.Encryption(key, {public: keys.public, n: keys.n});
+            encryptedKey = RSA.Encryption(encryptedKey, {public: privateKey, n: nKey});
+            // let encryptedKey = RSA.Encryption(key, {public: keys.public, n: keys.n});
+            socket.emit('send', {id: id, messageDetail: {...messageDetail, key: encryptedKey}});
+        });
     });
 }
 
@@ -217,7 +238,7 @@ export const receiveMessages = (messageDetails, users, socket, userId, privateKe
                 let decryptedKey = RSA.Decryption(encryptedKey, {private: keys[messageDetail.from].public, n: keys[messageDetail.from].n});
                 decryptedKey = RSA.Decryption(decryptedKey, {private: privateKey, n: nKey});
                 // let decryptedKey = RSA.Decryption(encryptedKey, {private: privateKey, n: nKey});
-                messageDetail.key = decryptedKey;     
+                messageDetail.key = decryptedKey;
             });
             dispatch({
                 type: ActionTypes.RECEIVE_MESSAGES,
@@ -384,6 +405,16 @@ export const updateChatName = (id, name) => dispatch => {
         payload: {
             _id: id,
             name: name
+        }
+    });
+}
+
+export const deleteMessage = (id, index) => dispatch => {
+    dispatch({
+        type: ActionTypes.DELETE_MESSAGE,
+        payload: {
+            id: id,
+            index: index
         }
     });
 }

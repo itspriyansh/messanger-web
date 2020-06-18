@@ -5,14 +5,23 @@ import { Link } from 'react-router-dom';
 import baseurl from '../shared/baseurl';
 import AES256 from '../shared/aes-256';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faUserPlus, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
-import { Redirect } from 'react-router-dom';
+import { faUser, faUserPlus, faSignOutAlt, faPaste, faImage, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 const getMessageToShow = (message)=> {
     const chats = Object.values(message.chat)
         .sort((message1, message2) => new Date(message1.time) - new Date(message2.time));
     const last = chats.length;
-    const text =  chats && last ? AES256.DecryptMain({
+    if(chats && last) {
+        if(chats[last-1].type === 'doc') {
+            return <><FontAwesomeIcon icon={faPaste} /> Document</>
+        } else if(chats[last-1].type === 'image') {
+            return <><FontAwesomeIcon icon={faImage} /> Image</>
+        } else if(chats[last-1].type === 'video') {
+            return <><FontAwesomeIcon icon={faVideo} /> Video</>
+        }
+    }
+    const text =  chats && last
+    ? AES256.DecryptMain({
         text: chats[last-1].message,
         key: chats[last-1].key
     }, chats[last-1].type):'';
@@ -20,9 +29,6 @@ const getMessageToShow = (message)=> {
 }
 
 function Home(props) {
-    if(!props.user.name && props.user.image.indexOf('default')!==-1) {
-        return <Redirect to='/my-profile' />
-    }
     return(
         <>
             <Header title='Messanger' dropdownOptions={[

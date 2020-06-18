@@ -7,6 +7,7 @@ import Loading from './loading.component';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPencilAlt, faCheck, faTimes, faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router-dom';
+import PictureModal from './picture-modal.component';
 
 const borderBottom = {
     borderBottom: '1px grey solid'
@@ -18,12 +19,14 @@ class Profile extends Component {
         this.state = {
             name: props.user.name,
             uploadPictureModal: false,
-            editName: false
+            editName: false,
+            pictureModalOpen: false
         }
         this.toggleUploadPictureModal = this.toggleUploadPictureModal.bind(this);
         this.toggleEditName = this.toggleEditName.bind(this);
         this.handleNameChange = this.handleNameChange.bind(this);
         this.handleNameSubmit = this.handleNameSubmit.bind(this);
+        this.togglePictureModal = this.togglePictureModal.bind(this);
     }
 
     toggleUploadPictureModal() {
@@ -47,6 +50,10 @@ class Profile extends Component {
         }
     }
 
+    togglePictureModal() {
+        this.setState({pictureModalOpen: !this.state.pictureModalOpen});
+    }
+
     render() {
         return(
             <>
@@ -63,7 +70,8 @@ class Profile extends Component {
                                         <CardImg src={baseurl+this.props.user.image}
                                             style={{width: '40%', alignSelf: 'center'}}
                                             alt="Profile"
-                                            className="img-fluid rounded-circle mt-4 mb-2"
+                                            className="img-fluid rounded-circle mt-4 mb-2 cursor-pointer"
+                                            onClick={this.togglePictureModal}
                                         />
                                         {this.props.myProfile
                                         ? <div className="mb-4 d-flex" style={{justifyContent: 'space-around'}}> 
@@ -125,6 +133,8 @@ class Profile extends Component {
                     toggle={this.toggleUploadPictureModal}
                     uploadProfilePicture={this.props.uploadProfilePicture} />
                 : null}
+                <PictureModal open={this.state.pictureModalOpen} toggle={this.togglePictureModal}
+                    name="Profile Picture" src={baseurl+this.props.user.image} />
             </>
         );
     }

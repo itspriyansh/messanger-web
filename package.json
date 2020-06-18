@@ -12,7 +12,9 @@
     "@testing-library/user-event": "^7.1.2",
     "big-integer": "^1.6.48",
     "bootstrap": "^4.5.0",
+    "browser-image-compression": "^1.0.12",
     "jimp": "^0.13.0",
+    "keybase-compressjs": "^1.0.1-c",
     "lzutf8": "^0.5.5",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
@@ -23,6 +25,7 @@
     "redux": "^4.0.5",
     "redux-logger": "^3.0.6",
     "redux-thunk": "^2.3.0",
+    "save-file": "^2.3.1",
     "socket.io-client": "^2.3.0",
     "sweetalert": "^2.1.2",
     "utfstring": "^2.0.1"

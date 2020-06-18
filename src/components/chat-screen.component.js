@@ -8,6 +8,8 @@ class ChatScreen extends React.Component {
         super();
         this.markSeen = this.markSeen.bind(this);
         this.scrollToBottom = this.scrollToBottom.bind(this);
+        this.sendMessageMinified = this.sendMessageMinified.bind(this);
+        this.deleteMessageMinified = this.deleteMessageMinified.bind(this);
     }
     scrollToBottom = () => {
         if(this.messagesEnd)
@@ -41,6 +43,23 @@ class ChatScreen extends React.Component {
         });
     }
 
+    sendMessageMinified(index,message, type) {
+        this.props.sendMessage(
+            this.props.chat._id,
+            this.props.userId,
+            message,
+            this.props.socket,
+            this.props.privateKey,
+            this.props.nKey,
+            index,
+            type
+        );
+    }
+
+    deleteMessageMinified(index) {
+        this.props.deleteMessage(this.props.chat._id, index);
+    }
+
     render(){
         if(!this.props.chat){
             return(<div>Loading...</div>);
@@ -63,7 +82,9 @@ class ChatScreen extends React.Component {
                                     <Message message={message} userId={this.props.userId}
                                     last={index+1 === Object.values(this.props.chat.chat).length}
                                     image={this.props.chat.image}
-                                    prevMessage={(index ? Object.values(this.props.chat.chat)[index-1] : null)} />
+                                    prevMessage={(index ? Object.values(this.props.chat.chat)[index-1] : null)}
+                                    sendMessage={this.sendMessageMinified}
+                                    deleteMessage={this.deleteMessageMinified} />
                                 </React.Fragment>
                             );
                         })}
